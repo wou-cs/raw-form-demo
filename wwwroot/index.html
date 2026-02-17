@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Demo — CS-366 Week 7</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+          rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark mb-4">
+        <div class="container">
+            <span class="navbar-brand">Form Demo &mdash; CS-366 Week 7</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <p class="lead">
+            Each card below contains an HTML form. Submit each one and observe:
+            the <strong>URL bar</strong>, the <strong>server response</strong>, and
+            the <strong>DevTools Network tab</strong> (F12).
+        </p>
+        <p class="text-muted mb-4">
+            There are no controllers, no models, no views. The server reads raw
+            query strings and form bodies &mdash; exactly what MVC does behind the scenes.
+        </p>
+
+        <div class="row g-4">
+
+            <!-- ============================================================ -->
+            <!-- 1. Simple Search — GET -->
+            <!-- ============================================================ -->
+            <div class="col-md-6">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between">
+                        <strong>1. Simple Search</strong>
+                        <span class="badge bg-light text-primary">GET</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text text-muted">
+                            Type something and submit. Watch the URL bar &mdash; your
+                            search term appears as <code>?search=...</code>
+                        </p>
+                        <form action="/search" method="get">
+                            <div class="mb-3">
+                                <label for="search1" class="form-label">Search:</label>
+                                <input type="text" name="search" id="search1"
+                                       class="form-control" placeholder="Try 'kittens'">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Search</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- 2. Multiple Fields — GET (with space-in-name bug) -->
+            <!-- ============================================================ -->
+            <div class="col-md-6">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between">
+                        <strong>2. Multiple Fields (with a bug!)</strong>
+                        <span class="badge bg-light text-primary">GET</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text text-muted">
+                            Fill in the fields and submit. Look at the URL &mdash;
+                            notice anything weird about "Ending Date"?
+                        </p>
+                        <form action="/filter" method="get">
+                            <div class="mb-3">
+                                <label for="name2" class="form-label">Name:</label>
+                                <input type="text" name="name" id="name2"
+                                       class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label for="start2" class="form-label">Start Date:</label>
+                                <input type="date" name="start_date" id="start2"
+                                       class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label for="end2" class="form-label">Ending Date:</label>
+                                <!-- BUG: space in name attribute! -->
+                                <input type="date" name="end date" id="end2"
+                                       class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label for="count2" class="form-label">Count:</label>
+                                <input type="number" name="count" id="count2"
+                                       class="form-control" min="0" max="10">
+                            </div>
+                            <button type="submit" class="btn btn-outline-primary">Filter</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- 3. Login WRONG — GET (password in URL!) -->
+            <!-- ============================================================ -->
+            <div class="col-md-6">
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white d-flex justify-content-between">
+                        <strong>3. Login (WRONG way)</strong>
+                        <span class="badge bg-light text-danger">GET</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text text-danger">
+                            <strong>Don't do this!</strong> Submit and look at the URL bar &mdash;
+                            your password is visible to everyone.
+                        </p>
+                        <form action="/login-wrong" method="get">
+                            <div class="mb-3">
+                                <label for="uname3" class="form-label">Username:</label>
+                                <input type="text" name="username" id="uname3"
+                                       class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label for="pass3" class="form-label">Password:</label>
+                                <input type="password" name="password" id="pass3"
+                                       class="form-control">
+                            </div>
+                            <button type="submit" class="btn btn-danger">
+                                Login (insecure!)
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- 4. Login RIGHT — POST (password in body) -->
+            <!-- ============================================================ -->
+            <div class="col-md-6">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white d-flex justify-content-between">
+                        <strong>4. Login (RIGHT way)</strong>
+                        <span class="badge bg-light text-success">POST</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text text-muted">
+                            Same fields, but using POST. Submit and check the URL bar &mdash;
+                            no password! Open DevTools &gt; Network &gt; Payload to find it.
+                        </p>
+                        <form action="/login-right" method="post">
+                            <div class="mb-3">
+                                <label for="uname4" class="form-label">Username:</label>
+                                <input type="text" name="username" id="uname4"
+                                       class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label for="pass4" class="form-label">Password:</label>
+                                <input type="password" name="password" id="pass4"
+                                       class="form-control">
+                            </div>
+                            <button type="submit" class="btn btn-success">
+                                Login (secure)
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- 5. Create with File Upload — POST multipart -->
+            <!-- ============================================================ -->
+            <div class="col-md-12">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white d-flex justify-content-between">
+                        <strong>5. Create with File Upload</strong>
+                        <span class="badge bg-light text-success">POST</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text text-muted">
+                            This form uses <code>enctype="multipart/form-data"</code> so the
+                            browser sends file contents (not just the filename). Check the
+                            Content-Type in DevTools &mdash; it's <code>multipart/form-data</code>
+                            instead of <code>application/x-www-form-urlencoded</code>.
+                        </p>
+                        <form action="/submit" method="post" enctype="multipart/form-data">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="name5" class="form-label">Name:</label>
+                                    <input type="text" name="name" id="name5"
+                                           class="form-control">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="date5" class="form-label">Date:</label>
+                                    <input type="date" name="date" id="date5"
+                                           class="form-control">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="count5" class="form-label">Count:</label>
+                                    <input type="number" name="count" id="count5"
+                                           class="form-control" min="0" max="10">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="file5" class="form-label">Select a file:</label>
+                                <input type="file" name="file" id="file5"
+                                       class="form-control">
+                            </div>
+                            <button type="submit" class="btn btn-success">Create</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /row -->
+    </div><!-- /container -->
+</body>
+</html>
