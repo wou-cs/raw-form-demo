@@ -335,8 +335,13 @@ app.MapPost("/submit", async (HttpContext context) =>
 // ============================================================================
 app.MapGet("/crash", () =>
 {
-    logger.LogCritical("CRITICAL: The /crash endpoint was hit — about to throw an exception!");
-    throw new InvalidOperationException("This is an intentional crash for the logging demo.");
+    logger.LogCritical("CRITICAL: The /crash endpoint was hit! Something is very wrong.");
+    logger.LogError("Error details: simulated system failure on /crash");
+    logger.LogWarning("This is the last warning before the system goes down");
+    return Results.Content(
+        "<h1>500 - Internal Server Error</h1><p>Something went terribly wrong (on purpose).</p>",
+        "text/html",
+        statusCode: 500);
 });
 
 // Log at startup so students can see the app come online in the log stream
