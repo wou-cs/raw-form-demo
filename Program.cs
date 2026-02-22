@@ -13,11 +13,17 @@ using System.Net;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------------------------------------------------------------------------
-// Logging configuration — Azure App Service picks up these settings.
-// By default, Information and above are logged. We lower it to Trace so
-// students can experiment with filtering in the Azure portal.
+// Logging configuration
+//
+// Log levels are controlled by appsettings.json (locally) or by environment
+// variables in Azure.  To change the level in Azure WITHOUT redeploying:
+//
+//   App Service > Configuration > Application settings > New application setting
+//     Name:  Logging__LogLevel__Default
+//     Value: Warning   (or Information, Error, etc.)
+//
+// The double-underscore (__) is how .NET reads nested JSON keys from env vars.
 // ---------------------------------------------------------------------------
-builder.Logging.SetMinimumLevel(LogLevel.Trace);
 
 var app = builder.Build();
 

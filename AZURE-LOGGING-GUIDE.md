@@ -12,11 +12,11 @@ using the Azure portal to view application logs at different levels.
 3. Fill in the basics:
    - **Subscription**: your Azure for Education (or whichever you use)
    - **Resource Group**: create new, e.g. `cs366-demos`
-   - **Name**: `cs366-form-demo` (this becomes `cs366-form-demo.azurewebsites.net`)
+   - **Name**: `wou-learn-logging` (this becomes `wou-learn-logging.azurewebsites.net`)
    - **Publish**: Code
    - **Runtime stack**: .NET 8 (LTS)
    - **Operating System**: Linux
-   - **Region**: pick one close to you (e.g. West US 2)
+   - **Region**: pick one close to you (e.g. Canada Central)
    - **Pricing plan**: Free F1 (sufficient for demos)
 4. Click **Review + create**, then **Create**
 5. Wait for deployment to complete (~1 minute)
@@ -44,15 +44,14 @@ using the Azure portal to view application logs at different levels.
 ### Update the Workflow (if needed)
 
 In `.github/workflows/azure-deploy.yml`, make sure `AZURE_WEBAPP_NAME` matches
-the name you chose in step 3 above (e.g. `cs366-form-demo`).
+the name you chose in step 1 above.
 
 ### Trigger the Deploy
 
 - **Automatic**: push any commit to the `main` branch
 - **Manual**: go to the repo's **Actions** tab > **Deploy to Azure** > **Run workflow**
 
-The workflow takes about 1-2 minutes. Once it completes, visit
-`https://cs366-form-demo.azurewebsites.net` to see the running app.
+The workflow takes about 1-2 minutes.
 
 ---
 
@@ -65,7 +64,7 @@ enable it.
 2. In the left sidebar, scroll to **Monitoring** > **App Service logs**
 3. Set the following:
    - **Application logging (Filesystem)**: **On**
-   - **Level**: **Verbose** (this captures Trace and above — all levels)
+   - **Level**: **Verbose** (leave this on Verbose — we'll control filtering a better way)
    - **Quota (MB)**: 35 (default is fine)
    - **Retention Period (Days)**: 1 (enough for a demo)
 4. Click **Save**
@@ -73,74 +72,104 @@ enable it.
 > **Important**: Filesystem logging auto-disables after 12 hours. This is by
 > design — it's meant for short debugging sessions, not permanent monitoring.
 
+> **Note**: On Linux App Service, the "Level" dropdown in App Service logs and
+> the Log Stream filter **do not reliably filter output**. The Log Stream reads
+> raw stdout from the container. To control what gets logged, we change the
+> app's own configuration — see Part 5.
+
 ---
 
-## Part 4: View Logs in the Azure Portal
-
-### Option A: Log Stream (real-time)
+## Part 4: View Logs — Log Stream (real-time)
 
 This is the easiest way to watch logs as they happen.
 
 1. In your App Service, go to **Monitoring** > **Log stream**
 2. You'll see a live feed of output — it may take 30-60 seconds to connect
 3. Now open the app in another browser tab and click around:
-   - Submit a search → see the `Information` log
-   - Use the filter form → see the `Warning` about the space-in-name bug
-   - Try the wrong login → see the `Error` log about credentials in the URL
-   - Visit `/crash` → see the `Critical` log and the exception stack trace
+   - Submit a search → see `info: FormDemo` and `dbug: FormDemo` messages
+   - Use the filter form → see `warn: FormDemo` about the space-in-name bug
+   - Try the wrong login → see `fail: FormDemo` about credentials in the URL
+   - Visit `/crash` → see `crit:`, `fail:`, and `warn:` all at once
 4. Watch the log stream update in real time
 
-### Option B: Log Files via Kudu (Advanced Tools)
-
-For browsing historical log files:
+You can also browse historical log files:
 
 1. In your App Service, go to **Development Tools** > **Advanced Tools** > click **Go →**
-2. This opens the Kudu console at `https://cs366-form-demo.scm.azurewebsites.net`
+2. This opens the Kudu console
 3. Navigate to: **Debug console** > **Bash**
-4. Browse to `/home/LogFiles/` — you'll find:
-   - `stdout_*.log` — your application's console output
-   - Files in the `Application/` folder — structured app logs
-
-### Option C: Download Logs as a ZIP
-
-1. Visit: `https://cs366-form-demo.scm.azurewebsites.net/api/dump`
-2. This downloads a ZIP of all current log files
+4. Browse to `/home/LogFiles/` — look for `stdout_*.log` files
 
 ---
 
-## Part 5: Understanding Log Levels
+## Part 5: Controlling Log Levels (the key demo!)
+
+The app reads its log level from `appsettings.json`:
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Trace",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+```
+
+- `"Default": "Trace"` — our FormDemo logger emits everything (Trace and above)
+- `"Microsoft.AspNetCore": "Warning"` — suppresses the noisy framework logs
+
+### Changing the level live in Azure (no redeploy!)
+
+.NET configuration supports **environment variable overrides**. In Azure:
+
+1. Open your App Service
+2. Go to **Settings** > **Environment variables** (or **Configuration** > **Application settings**)
+3. Click **+ Add**
+4. Set:
+   - **Name**: `Logging__LogLevel__Default`
+   - **Value**: `Warning`
+5. Click **Apply**, then **Apply** again to confirm restart
+
+> The double-underscore (`__`) is how .NET reads nested JSON keys from
+> environment variables. `Logging__LogLevel__Default` overrides
+> `Logging.LogLevel.Default` in appsettings.json.
+
+Now go back to the **Log Stream** and submit forms. You'll only see Warning,
+Error, and Critical messages from FormDemo — the Information and Debug messages
+are gone.
+
+### Try different levels
+
+| Value | What FormDemo logs you'll see |
+|-------|------------------------------|
+| `Trace` | Everything (Trace, Debug, Info, Warning, Error, Critical) |
+| `Information` | Info, Warning, Error, Critical |
+| `Warning` | Warning, Error, Critical |
+| `Error` | Error, Critical only |
+
+**To reset**: delete the `Logging__LogLevel__Default` environment variable and
+the app falls back to what's in appsettings.json (`Trace`).
+
+---
+
+## Part 6: Understanding Log Levels
 
 The app uses six standard .NET log levels. Here's what each one means and
 where it appears in this demo:
 
-| Level | When to use it | Example in this app |
-|-------|---------------|---------------------|
-| **Trace** | Ultra-detailed diagnostic info; usually off in production | Redirect from `/` to `/index.html` |
-| **Debug** | Detailed info useful during development | Raw query strings, file upload details |
-| **Information** | General operational events — "this happened" | Search terms, login attempts, form submissions |
-| **Warning** | Something unexpected but not broken | Space-in-name bug, large file uploads |
-| **Error** | Something failed that shouldn't have | Credentials sent via GET (security problem) |
-| **Critical** | App is about to crash or is unusable | The `/crash` endpoint |
-
-### Filtering by Level in Azure
-
-In **App Service logs** settings, the **Level** dropdown controls the minimum
-level captured:
-
-| Setting | What gets logged |
-|---------|-----------------|
-| Verbose | Trace + Debug + Information + Warning + Error + Critical |
-| Information | Information + Warning + Error + Critical |
-| Warning | Warning + Error + Critical |
-| Error | Error + Critical |
-
-**Try it**: set the level to **Warning**, submit some forms, then check the
-log stream — you'll only see the Warning, Error, and Critical messages. The
-Information and Debug messages are filtered out.
+| Level | Log prefix | When to use it | Example in this app |
+|-------|-----------|----------------|---------------------|
+| **Trace** | `trce:` | Ultra-detailed diagnostic info; usually off in production | Redirect from `/` to `/index.html` |
+| **Debug** | `dbug:` | Detailed info useful during development | Raw query strings, file upload details |
+| **Information** | `info:` | General operational events — "this happened" | Search terms, login attempts, form submissions |
+| **Warning** | `warn:` | Something unexpected but not broken | Space-in-name bug, large file uploads |
+| **Error** | `fail:` | Something failed that shouldn't have | Credentials sent via GET (security problem) |
+| **Critical** | `crit:` | App is about to crash or is unusable | The `/crash` endpoint |
 
 ---
 
-## Part 6: Endpoints to Try
+## Part 7: Endpoints to Try
 
 | URL | Method | What it logs |
 |-----|--------|-------------|
@@ -150,7 +179,7 @@ Information and Debug messages are filtered out.
 | `/login-wrong?username=admin&password=secret` | GET | Error: credentials in URL |
 | `/login-right` (via form) | POST | Information: login attempt |
 | `/submit` (via form) | POST | Information + Debug: form fields + file details |
-| `/crash` | GET | Critical: intentional exception |
+| `/crash` | GET | Critical + Error + Warning: simulated failure |
 
 ---
 
@@ -158,5 +187,7 @@ Information and Debug messages are filtered out.
 
 - **"Log stream is connecting..."** — wait 30-60 seconds; try refreshing the page
 - **No logs appearing** — verify Application logging is set to **On** and level is **Verbose**
+- **Too much framework noise** — the `"Microsoft.AspNetCore": "Warning"` setting in appsettings.json suppresses most of it; if you still see too much, add `Logging__LogLevel__Microsoft.AspNetCore=None` as an env var
 - **Logs stop appearing** — filesystem logging auto-disables after 12 hours; re-enable it
 - **Deploy failed** — check the GitHub Actions tab for error details; most common issue is the publish profile secret being incorrect or the app name not matching
+- **Env var change not taking effect** — Azure restarts the app when you save env vars; wait ~30 seconds for the restart to complete
