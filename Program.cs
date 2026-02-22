@@ -11,7 +11,18 @@
 using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ---------------------------------------------------------------------------
+// Logging configuration — Azure App Service picks up these settings.
+// By default, Information and above are logged. We lower it to Trace so
+// students can experiment with filtering in the Azure portal.
+// ---------------------------------------------------------------------------
+builder.Logging.SetMinimumLevel(LogLevel.Trace);
+
 var app = builder.Build();
+
+// Get a logger we can use in our minimal API endpoints
+var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("FormDemo");
 
 // Serve static files from wwwroot/ (our index.html lives there)
 app.UseStaticFiles();
@@ -88,7 +99,11 @@ string BuildTable(IEnumerable<KeyValuePair<string, string?>> pairs)
 // ============================================================================
 // GET / — Redirect to the static index.html page
 // ============================================================================
-app.MapGet("/", () => Results.Redirect("/index.html"));
+app.MapGet("/", () =>
+{
+    logger.LogTrace("Redirecting from / to /index.html");
+    return Results.Redirect("/index.html");
+});
 
 // ============================================================================
 // GET /search — Simple single-field query string demo
@@ -101,6 +116,9 @@ app.MapGet("/search", (HttpContext context) =>
     // Read the "search" key from the query string.
     // This key matches the name="search" attribute in the HTML form.
     string? searchTerm = context.Request.Query["search"];
+
+    logger.LogDebug("GET /search hit with query string: {QueryString}", context.Request.QueryString.Value);
+    logger.LogInformation("Search requested for term: {SearchTerm}", searchTerm ?? "(none)");
 
     var html = $@"
         <h2>GET /search</h2>
@@ -128,6 +146,15 @@ app.MapGet("/search", (HttpContext context) =>
 // ============================================================================
 app.MapGet("/filter", (HttpContext context) =>
 {
+    var paramCount = context.Request.Query.Count;
+    logger.LogDebug("GET /filter hit with {ParamCount} query parameters", paramCount);
+
+    // Log a warning when the space-in-name bug is present
+    if (context.Request.Query.ContainsKey("end date"))
+    {
+        logger.LogWarning("Query parameter 'end date' contains a space — this is the intentional bug demo");
+    }
+
     var html = $@"
         <h2>GET /filter</h2>
         <div class=""alert alert-info"">
@@ -160,6 +187,10 @@ app.MapGet("/login-wrong", (HttpContext context) =>
 {
     string? username = context.Request.Query["username"];
     string? password = context.Request.Query["password"];
+
+    // ERROR-level: this is genuinely bad — credentials in a GET request
+    logger.LogError("SECURITY: Login attempt via GET — credentials exposed in URL! User: {Username}", username);
+    logger.LogDebug("GET /login-wrong full URL: {Path}{Query}", context.Request.Path, context.Request.QueryString.Value);
 
     var html = $@"
         <h2>GET /login-wrong</h2>
@@ -197,6 +228,9 @@ app.MapPost("/login-right", async (HttpContext context) =>
     string? username = form["username"];
     string? password = form["password"];
 
+    logger.LogInformation("POST /login-right — login attempt for user: {Username}", username);
+    // Note: we NEVER log the password, even at Debug level!
+
     var html = $@"
         <h2>POST /login-right</h2>
         <div class=""alert alert-success"">
@@ -227,6 +261,21 @@ app.MapPost("/login-right", async (HttpContext context) =>
 app.MapPost("/submit", async (HttpContext context) =>
 {
     var form = await context.Request.ReadFormAsync();
+
+    logger.LogInformation("POST /submit — received {FieldCount} form fields, {FileCount} file(s)",
+        form.Count, form.Files.Count);
+
+    foreach (var file in form.Files)
+    {
+        logger.LogDebug("Uploaded file: {FileName}, Size: {FileSize} bytes, ContentType: {ContentType}",
+            file.FileName, file.Length, file.ContentType);
+
+        if (file.Length > 5_000_000)
+        {
+            logger.LogWarning("Large file upload: {FileName} is {FileSizeMB:F1} MB",
+                file.FileName, file.Length / 1_000_000.0);
+        }
+    }
 
     // Build the table for regular form fields
     var fieldPairs = form
@@ -277,6 +326,21 @@ app.MapPost("/submit", async (HttpContext context) =>
 
     return Results.Content(WrapInPage("POST /submit", html), "text/html");
 });
+
+// ============================================================================
+// GET /crash — Demonstrates exception logging (Critical level)
+//
+// Throws an intentional exception so students can see how errors appear
+// in Azure's log stream.
+// ============================================================================
+app.MapGet("/crash", () =>
+{
+    logger.LogCritical("CRITICAL: The /crash endpoint was hit — about to throw an exception!");
+    throw new InvalidOperationException("This is an intentional crash for the logging demo.");
+});
+
+// Log at startup so students can see the app come online in the log stream
+logger.LogInformation("FormDemo app starting — logging demo is active");
 
 // Start the server
 app.Run();

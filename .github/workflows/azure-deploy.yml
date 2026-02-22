@@ -1,0 +1,49 @@
+# Deploy FormDemo to Azure App Service
+#
+# Prerequisites (one-time setup):
+#   1. Create an Azure App Service (Linux, .NET 8) in the Azure portal
+#   2. In the App Service, go to Deployment Center > Manage publish profile > Download
+#   3. In this GitHub repo, go to Settings > Secrets > Actions > New secret
+#      - Name: AZURE_WEBAPP_PUBLISH_PROFILE
+#      - Value: paste the entire contents of the downloaded .PublishSettings file
+#   4. Update the AZURE_WEBAPP_NAME below to match your App Service name
+
+name: Deploy to Azure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:       # Allow manual trigger from GitHub UI
+
+env:
+  AZURE_WEBAPP_NAME: cs366-form-demo   # <-- Change this to your App Service name
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish --configuration Release --no-build --output ./publish
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./publish
